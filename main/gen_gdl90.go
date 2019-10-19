@@ -290,23 +290,28 @@ func makeOwnshipReport() bool {
 		return false
 	}
 	curOwnship := OwnshipTrafficInfo
+	// Retrieve ICAO code from settings
 
 	msg := make([]byte, 28)
 	// See p.16.
 	msg[0] = 0x0A // Message type "Ownship".
 
-	msg[1] = 0x01 // Alert status, address type.
-
+	// Ownship Target Identify (see 3.5.1.2 of GDL-90 Specifications)
+	// First half of byte is 0 for Alert type of 'No Traffic Alert'
+	// Second half of byte is 0 for traffic type 'ADS-B with ICAO'
+	// Send 0x01 by default, unless ICAO is set, send 0x00
 	code, _ := hex.DecodeString(globalSettings.OwnshipModeS)
-	if len(code) != 3 {
+	if (len(code) == 3 && code[0] != 0xF0 && code[0] != 0x00) {
+		msg[1] = 0x00 // ADS-B Out with ICAO
+		msg[2] = code[0] // Mode S address.
+		msg[3] = code[1] // Mode S address.
+		msg[4] = code[2] // Mode S address.
+	} else {
+		msg[1] = 0x01 // ADS-B Out with self-assigned code
 		// Reserved dummy code.
 		msg[2] = 0xF0
 		msg[3] = 0x00
 		msg[4] = 0x00
-	} else {
-		msg[2] = code[0] // Mode S address.
-		msg[3] = code[1] // Mode S address.
-		msg[4] = code[2] // Mode S address.
 	}
 
 	var tmp []byte
